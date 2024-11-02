@@ -1,6 +1,5 @@
 ﻿using System.Drawing;
 using System.Drawing.Imaging;
-using System.Text.Json;
 using static Http;
 
 var filename = @"H:\inpath\nagap_glacier_photos.csv";
