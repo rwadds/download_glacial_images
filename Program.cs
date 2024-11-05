@@ -12,9 +12,10 @@ foreach (var line in lines)
 {
     if (cnt == 0) { cnt++; continue; }
     var split = line.Split(',');
-    if (File.Exists(Path.Combine(checkpath, Path.GetFileNameWithoutExtension(split[8]),".jpg"))) continue;    
+    if (Path.GetExtension(split[8]) != ".tif") continue;
+    var exist = Path.Combine(checkpath, Path.GetFileNameWithoutExtension(split[8]) + ".jpg");
+    if (File.Exists(exist)) { Console.WriteLine("continuing"); continue; }
     var outfile = Path.Combine(outpath, split[8]);
-    if (File.Exists(outfile)) continue;
     Console.Write("Downloading..." + split[8]);
     var resp = await Call(HttpVerbs.GET, "https://arcticdata.io/metacat/d1/mn/v2/object/" + split[10]);
     await File.WriteAllBytesAsync(outfile, resp.Response);
@@ -26,6 +27,7 @@ foreach (var line in lines)
         File.Delete(outfile);
     }
     Console.WriteLine("...Done");
+    GC.Collect();
 }
 public static class Http
 {
@@ -114,6 +116,5 @@ internal static class Converter
         }
 
         return jpegPaths;
-
     }
 }
