@@ -2,9 +2,11 @@
 using System.Drawing.Imaging;
 using static Http;
 
-var filename = @"H:\inpath\nagap_glacier_photos.csv";
-var outpath = @"H:\outpath";
-var checkpath = @"H:\jpg";
+var filename = @"G:\inpath\nagap_glacier_photos.csv";
+var outpath = @"G:\outpath";
+var checkpath = @"E:\glacierpics\jpg";
+string finalPath = @"G:\jpg";
+
 
 var lines = await File.ReadAllLinesAsync(filename);
 var cnt = 0;
@@ -14,33 +16,50 @@ foreach (var line in lines)
     var split = line.Split(',');
     if (Path.GetExtension(split[8]) != ".tif") continue;
     var exist = Path.Combine(checkpath, Path.GetFileNameWithoutExtension(split[8]) + ".jpg");
-    if (File.Exists(exist)) { Console.WriteLine("continuing"); continue; }
+    var exist2 = Path.Combine(finalPath, Path.GetFileNameWithoutExtension(split[8]) + ".jpg");
+    if (File.Exists(exist) || File.Exists(exist2)) { Console.WriteLine("continuing " + DateTime.Now); continue; }
     var outfile = Path.Combine(outpath, split[8]);
-    Console.Write("Downloading..." + split[8]);
+    Console.Write("Downloading..." + split[8] + " " + DateTime.Now);
+    Thread.Sleep(1000);
     var resp = await Call(HttpVerbs.GET, "https://arcticdata.io/metacat/d1/mn/v2/object/" + split[10]);
+    if (resp.StatusCode == 500) continue;
+    if (resp.Response == null) continue;
     await File.WriteAllBytesAsync(outfile, resp.Response);
-    Console.Write("...Converting..." + split[8]);
-    Converter.ConvertTiffToJpeg(outfile);
-    Console.Write("...Deleting..." + split[8]);
+    Console.Write("...Converting..." + split[8] + " " + DateTime.Now);
+    Converter.ConvertTiffToJpeg(outfile, finalPath);
+    Console.Write("...Deleting..." + split[8] + " " + DateTime.Now);
     if (File.Exists(outfile))
     {
         File.Delete(outfile);
     }
     Console.WriteLine("...Done");
-    GC.Collect();
+    //GC.Collect();
 }
 public static class Http
 {
     public static async Task<ApiResponse> Call(HttpVerbs verb, string api)
     {
         using HttpClient client = new();
+        client.Timeout = new TimeSpan(0, 30, 0);
         client.BaseAddress = new Uri(api);
         HttpResponseMessage r = new();
-        r = verb switch
+        try
         {
-            HttpVerbs.GET => await client.GetAsync((string?)null),
-            _ => throw new ArgumentException("not supported - " + verb, nameof(verb)),
-        };
+            r = verb switch
+            {
+                HttpVerbs.GET => await client.GetAsync((string?)null),
+                _ => throw new ArgumentException("not supported - " + verb, nameof(verb)),
+            };
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            return new ApiResponse
+            {
+                StatusCode = 500,
+                Response = null
+            };
+        }
 
         return new ApiResponse
         {
@@ -52,7 +71,7 @@ public static class Http
     public class ApiResponse
     {
         public required int StatusCode { get; set; }
-        public required byte[] Response { get; set; }
+        public required byte[]? Response { get; set; }
     }
 
 
@@ -98,8 +117,7 @@ public static class Http
 
 internal static class Converter
 {
-    const string OUTPATH = @"H:\jpg";
-    public static string[] ConvertTiffToJpeg(string fileName)
+    public static string[] ConvertTiffToJpeg(string fileName, string OUTPATH)
     {
         using var imageFile = Image.FromFile(fileName);
         var frameDimensions = new FrameDimension(imageFile.FrameDimensionsList[0]);
