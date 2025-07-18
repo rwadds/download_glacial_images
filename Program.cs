@@ -10,6 +10,7 @@ string finalPath = @"G:\jpg";
 
 var lines = await File.ReadAllLinesAsync(filename);
 var cnt = 0;
+var linescnt = lines.Count();
 foreach (var line in lines)
 {
     if (cnt == 0) { cnt++; continue; }
@@ -17,10 +18,16 @@ foreach (var line in lines)
     if (Path.GetExtension(split[8]) != ".tif") continue;
     var exist = Path.Combine(checkpath, Path.GetFileNameWithoutExtension(split[8]) + ".jpg");
     var exist2 = Path.Combine(finalPath, Path.GetFileNameWithoutExtension(split[8]) + ".jpg");
-    if (File.Exists(exist) || File.Exists(exist2)) { Console.WriteLine("continuing " + DateTime.Now); continue; }
+    if (File.Exists(exist) || File.Exists(exist2)) 
+    {
+        Console.Write($"Pct:{Math.Round((double)cnt / (double)linescnt * 100,2)}%...");
+        Console.WriteLine("continuing " + DateTime.Now);
+        cnt++;
+        continue; 
+    }
+
     var outfile = Path.Combine(outpath, split[8]);
     Console.Write("Downloading..." + split[8] + " " + DateTime.Now);
-    Thread.Sleep(1000);
     var resp = await Call(HttpVerbs.GET, "https://arcticdata.io/metacat/d1/mn/v2/object/" + split[10]);
     if (resp.StatusCode == 500) continue;
     if (resp.Response == null) continue;
@@ -32,7 +39,10 @@ foreach (var line in lines)
     {
         File.Delete(outfile);
     }
+
+    Console.Write($"Pct:{Math.Round((double)cnt / (double)linescnt * 100, 2)}%...");
     Console.WriteLine("...Done");
+    cnt++;
     //GC.Collect();
 }
 public static class Http
